@@ -15,15 +15,13 @@ CHECK_INTERVAL_SECONDS = 60
 
 app = Flask(__name__)
 
-# Load or initialize nested dictionary structure:
-# { "tp01": { "Team": score }, "tp02": { "Team": score }, "tp03": { "Team": score } }
+# Structured database: { "tp01": { "Team": { "score": float, "display": str } }, ... }
 best_scores = {p: {} for p in PROJECTS}
 
 if os.path.exists(LOG_FILE):
     try:
         with open(LOG_FILE, "r") as f:
             loaded_data = json.load(f)
-            # Ensure proper structure if migrating from single-leaderboard format
             for p in PROJECTS:
                 if p in loaded_data and isinstance(loaded_data[p], dict):
                     best_scores[p] = loaded_data[p]
@@ -31,7 +29,40 @@ if os.path.exists(LOG_FILE):
         print(f"Notice: Initializing clean database ({e})")
 
 # ==========================================
-# 2. BACKGROUND SCRAPER DAEMON
+# 2. EXACT JSON PARSER
+# ==========================================
+
+
+def parse_entry_metrics(entry):
+    """
+    Parses exact keys returned by TP01, TP02, and TP03 APIs.
+    """
+    # TP02 / Machine Learning (MSE)
+    if "mse" in entry and entry["mse"] is not None:
+        val = float(entry["mse"])
+        return val, f"{val:.2f}"
+
+    # TP01 / Optimization (restweg_h & covered)
+    if "restweg_h" in entry and entry["restweg_h"] is not None:
+        val = float(entry["restweg_h"])
+        cov = entry.get("covered", "-")
+        return val, f"Cov: {cov} | Dist: {val:.2f}"
+
+    # TP03 / Robotics (path_length)
+    if "path_length" in entry and entry["path_length"] is not None:
+        val = float(entry["path_length"])
+        return val, f"Path: {val:.2f}"
+
+    # Generic Fallback
+    for key in ["remaining_distance", "distance", "score"]:
+        if key in entry and entry[key] is not None:
+            val = float(entry[key])
+            return val, f"{val:.2f}"
+
+    return None, None
+
+# ==========================================
+# 3. BACKGROUND SCRAPER DAEMON
 # ==========================================
 
 
@@ -53,25 +84,30 @@ def monitor_leaderboards():
 
                     for entry in data:
                         team = entry.get("group_name")
-                        current_mse = entry.get("mse")
-
-                        if not team or current_mse is None:
+                        if not team:
                             continue
 
-                        # Track new team or improvement
+                        score, display_str = parse_entry_metrics(entry)
+                        if score is None:
+                            continue
+
+                        # Initialize team or update if score improved (lower is better for all 3)
                         if team not in project_scores:
-                            project_scores[team] = current_mse
+                            project_scores[team] = {
+                                "score": score, "display": display_str}
                             print(
-                                f"[{project.upper()}] Tracking team: {team} @ {current_mse:.2f}")
-                        elif current_mse < project_scores[team]:
+                                f"[{project.upper()}] Tracking {team}: {display_str}")
+                        elif score < project_scores[team]["score"]:
+                            prev = project_scores[team]["score"]
                             print(
-                                f"[{project.upper()}] 🚨 IMPROVEMENT: {team} dropped from {project_scores[team]:.2f} to {current_mse:.2f}!")
-                            project_scores[team] = current_mse
+                                f"[{project.upper()}] 🚨 IMPROVEMENT: {team} dropped from {prev:.2f} to {score:.2f}!")
+                            project_scores[team] = {
+                                "score": score, "display": display_str}
 
             except Exception as e:
                 print(f"[{project.upper()}] Scraper Error: {e}")
 
-        # Save nested dictionary to disk
+        # Persist to disk
         try:
             with open(LOG_FILE, "w") as f:
                 json.dump(best_scores, f, indent=4)
@@ -82,7 +118,7 @@ def monitor_leaderboards():
 
 
 # ==========================================
-# 3. WEB SERVER (Mobile-Friendly Multi-View)
+# 4. WEB SERVER
 # ==========================================
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -98,7 +134,7 @@ HTML_TEMPLATE = """
 		.project-header { font-size: 1.2em; font-weight: bold; color: #03dac6; border-bottom: 2px solid #03dac6; padding-bottom: 4px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
 		.card { background: #1e1e1e; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; justify-content: space-between; align-items: center; }
 		.team-name { font-size: 1em; font-weight: 500; color: #e0e0e0; }
-		.score { font-size: 1.2em; font-weight: bold; color: #cf6679; }
+		.score { font-size: 1.1em; font-weight: bold; color: #cf6679; }
 		.empty { color: #666; font-style: italic; font-size: 0.85em; padding: 6px 0; }
 		.footer { text-align: center; margin-top: 30px; font-size: 0.75em; color: #888; }
 	</style>
@@ -110,10 +146,10 @@ HTML_TEMPLATE = """
 	<div class="project-section">
 		<div class="project-header">{{ project|upper }}</div>
 		{% if teams %}
-			{% for team, score in teams|dictsort(false, 'value') %}
+			{% for team, info in teams.items()|sort(attribute='1.score') %}
 			<div class="card">
 				<span class="team-name">{{ team }}</span>
-				<span class="score">{{ "%.2f"|format(score) }}</span>
+				<span class="score">{{ info.display }}</span>
 			</div>
 			{% endfor %}
 		{% else %}
@@ -122,7 +158,7 @@ HTML_TEMPLATE = """
 	</div>
 	{% endfor %}
 
-	<div class="footer">Tracking historical best MSE for TP01, TP02, & TP03. Auto-refreshes in background.</div>
+	<div class="footer">Tracking historical best scores across TP01, TP02, & TP03. Auto-refreshes in background.</div>
 </body>
 </html>
 """
@@ -138,9 +174,6 @@ def health():
     return "OK", 200
 
 
-# ==========================================
-# 4. EXECUTION
-# ==========================================
 if __name__ == '__main__':
     scraper_thread = threading.Thread(target=monitor_leaderboards, daemon=True)
     scraper_thread.start()
