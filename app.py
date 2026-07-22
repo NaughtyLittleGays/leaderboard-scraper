@@ -15,7 +15,6 @@ CHECK_INTERVAL_SECONDS = 60
 
 app = Flask(__name__)
 
-# Structured database: { "tp01": { "Team": { "score": float, "display": str } }, ... }
 best_scores = {p: {} for p in PROJECTS}
 
 if os.path.exists(LOG_FILE):
@@ -26,7 +25,7 @@ if os.path.exists(LOG_FILE):
                 if p in loaded_data and isinstance(loaded_data[p], dict):
                     best_scores[p] = loaded_data[p]
     except Exception as e:
-        print(f"Notice: Initializing clean database ({e})")
+        print(f"Notice: Initializing clean database ({e})", flush=True)
 
 # ==========================================
 # 2. EXACT JSON PARSER
@@ -34,26 +33,19 @@ if os.path.exists(LOG_FILE):
 
 
 def parse_entry_metrics(entry):
-    """
-    Parses exact keys returned by TP01, TP02, and TP03 APIs.
-    """
-    # TP02 / Machine Learning (MSE)
     if "mse" in entry and entry["mse"] is not None:
         val = float(entry["mse"])
         return val, f"{val:.2f}"
 
-    # TP01 / Optimization (restweg_h & covered)
     if "restweg_h" in entry and entry["restweg_h"] is not None:
         val = float(entry["restweg_h"])
         cov = entry.get("covered", "-")
         return val, f"Cov: {cov} | Dist: {val:.2f}"
 
-    # TP03 / Robotics (path_length)
     if "path_length" in entry and entry["path_length"] is not None:
         val = float(entry["path_length"])
         return val, f"Path: {val:.2f}"
 
-    # Generic Fallback
     for key in ["remaining_distance", "distance", "score"]:
         if key in entry and entry[key] is not None:
             val = float(entry[key])
@@ -69,50 +61,52 @@ def parse_entry_metrics(entry):
 def monitor_leaderboards():
     global best_scores
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
         "Accept": "*/*"
     }
+
+    print("--- Background Leaderboard Monitor Started ---", flush=True)
 
     while True:
         for project in PROJECTS:
             url = BASE_URL.format(project=project)
             try:
                 response = requests.get(url, headers=headers, timeout=10)
-                if response.status_code == 200:
-                    data = response.json()
-                    project_scores = best_scores[project]
+                # Force HTTP errors (like 403, 404, 500) to throw an exception!
+                response.raise_for_status()
 
-                    for entry in data:
-                        team = entry.get("group_name")
-                        if not team:
-                            continue
+                data = response.json()
+                project_scores = best_scores[project]
 
-                        score, display_str = parse_entry_metrics(entry)
-                        if score is None:
-                            continue
+                for entry in data:
+                    team = entry.get("group_name")
+                    if not team:
+                        continue
 
-                        # Initialize team or update if score improved (lower is better for all 3)
-                        if team not in project_scores:
-                            project_scores[team] = {
-                                "score": score, "display": display_str}
-                            print(
-                                f"[{project.upper()}] Tracking {team}: {display_str}")
-                        elif score < project_scores[team]["score"]:
-                            prev = project_scores[team]["score"]
-                            print(
-                                f"[{project.upper()}] 🚨 IMPROVEMENT: {team} dropped from {prev:.2f} to {score:.2f}!")
-                            project_scores[team] = {
-                                "score": score, "display": display_str}
+                    score, display_str = parse_entry_metrics(entry)
+                    if score is None:
+                        continue
+
+                    if team not in project_scores:
+                        project_scores[team] = {
+                            "score": score, "display": display_str}
+                        print(
+                            f"[{project.upper()}] Tracking {team}: {display_str}", flush=True)
+                    elif score < project_scores[team]["score"]:
+                        prev = project_scores[team]["score"]
+                        print(
+                            f"[{project.upper()}] 🚨 IMPROVEMENT: {team} dropped from {prev:.2f} to {score:.2f}!", flush=True)
+                        project_scores[team] = {
+                            "score": score, "display": display_str}
 
             except Exception as e:
-                print(f"[{project.upper()}] Scraper Error: {e}")
+                print(f"[{project.upper()}] Scraper Error: {e}", flush=True)
 
-        # Persist to disk
         try:
             with open(LOG_FILE, "w") as f:
                 json.dump(best_scores, f, indent=4)
         except Exception as e:
-            print(f"Save Error: {e}")
+            print(f"Save Error: {e}", flush=True)
 
         time.sleep(CHECK_INTERVAL_SECONDS)
 
