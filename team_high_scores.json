@@ -1,1 +1,68 @@
-{}
+{
+    "tp01": {
+        "The Alpacas": {
+            "score": 4.946543766994656,
+            "display": "Cov: 46 | Dist: 4.95"
+        },
+        "The Elephants": {
+            "score": 4.946543766994656,
+            "display": "Cov: 46 | Dist: 4.95"
+        },
+        "The Hummingbirds": {
+            "score": 4.966712084597,
+            "display": "Cov: 46 | Dist: 4.97"
+        },
+        "The Bats": {
+            "score": 5.557109338584819,
+            "display": "Cov: 45 | Dist: 5.56"
+        },
+        "imi": {
+            "score": 42.187806477583514,
+            "display": "Cov: 3 | Dist: 42.19"
+        },
+        "The Skinks": {
+            "score": 5.685814075410421,
+            "display": "Cov: 45 | Dist: 5.69"
+        }
+    },
+    "tp02": {
+        "The Alpacas": {
+            "score": 585.2577388932756,
+            "display": "585.26"
+        },
+        "The Bonobos": {
+            "score": 586.7301944806995,
+            "display": "586.73"
+        },
+        "The Hummingbirds": {
+            "score": 617.4859826484782,
+            "display": "617.49"
+        },
+        "The Tapirs": {
+            "score": 748.9981690464617,
+            "display": "749.00"
+        },
+        "imi": {
+            "score": 196245.87862241498,
+            "display": "196245.88"
+        }
+    },
+    "tp03": {
+        "The Alpacas": {
+            "score": 9.951763728661103,
+            "display": "Path: 9.95"
+        },
+        "The Hummingbirds": {
+            "score": 9.973590159672035,
+            "display": "Path: 9.97"
+        },
+        "The Llamas": {
+            "score": 24.516177866780303,
+            "display": "Path: 24.52"
+        },
+        "imi": {
+            "score": 37.73606797749979,
+            "display": "Path: 37.74"
+        }
+    }
+}

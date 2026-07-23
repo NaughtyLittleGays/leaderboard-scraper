@@ -11,111 +11,119 @@ import requests
 PROJECTS = ["tp01", "tp02", "tp03"]
 BASE_URL = "https://ids-challenge.imi-services.imi.kit.edu/{project}/leaderboard"
 LOG_FILE = "team_high_scores.json"
-CHECK_INTERVAL_SECONDS = 60
+CHECK_INTERVAL_SECONDS = 5
 
 app = Flask(__name__)
 
 # State Trackers
 best_scores = {p: {} for p in PROJECTS}
-last_seen = {p: {} for p in PROJECTS}  # Tracks exact last state to catch non-improvements
+# Tracks exact last state to catch non-improvements
+last_seen = {p: {} for p in PROJECTS}
 activity_log = []  # Rolling log of the last 50 movements
 
 if os.path.exists(LOG_FILE):
-	try:
-		with open(LOG_FILE, "r") as f:
-			loaded_data = json.load(f)
-			for p in PROJECTS:
-				if p in loaded_data and isinstance(loaded_data[p], dict):
-					best_scores[p] = loaded_data[p]
-	except Exception as e:
-		print(f"Notice: Initializing clean database ({e})", flush=True)
+    try:
+        with open(LOG_FILE, "r") as f:
+            loaded_data = json.load(f)
+            for p in PROJECTS:
+                if p in loaded_data and isinstance(loaded_data[p], dict):
+                    best_scores[p] = loaded_data[p]
+    except Exception as e:
+        print(f"Notice: Initializing clean database ({e})", flush=True)
 
 # ==========================================
 # 2. EXACT JSON PARSER
 # ==========================================
+
+
 def parse_entry_metrics(entry):
-	if "mse" in entry and entry["mse"] is not None:
-		val = float(entry["mse"])
-		return val, f"{val:.2f}"
+    if "mse" in entry and entry["mse"] is not None:
+        val = float(entry["mse"])
+        return val, f"{val:.2f}"
 
-	if "restweg_h" in entry and entry["restweg_h"] is not None:
-		val = float(entry["restweg_h"])
-		cov = entry.get("covered", "-")
-		return val, f"Cov: {cov} | Dist: {val:.2f}"
+    if "restweg_h" in entry and entry["restweg_h"] is not None:
+        val = float(entry["restweg_h"])
+        cov = entry.get("covered", "-")
+        return val, f"Cov: {cov} | Dist: {val:.2f}"
 
-	if "path_length" in entry and entry["path_length"] is not None:
-		val = float(entry["path_length"])
-		return val, f"Path: {val:.2f}"
+    if "path_length" in entry and entry["path_length"] is not None:
+        val = float(entry["path_length"])
+        return val, f"Path: {val:.2f}"
 
-	for key in ["remaining_distance", "distance", "score"]:
-		if key in entry and entry[key] is not None:
-			val = float(entry[key])
-			return val, f"{val:.2f}"
+    for key in ["remaining_distance", "distance", "score"]:
+        if key in entry and entry[key] is not None:
+            val = float(entry[key])
+            return val, f"{val:.2f}"
 
-	return None, None
+    return None, None
 
 # ==========================================
 # 3. BACKGROUND SCRAPER DAEMON
 # ==========================================
+
+
 def monitor_leaderboards():
-	global best_scores, last_seen, activity_log
-	headers = {
-		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-		"Accept": "*/*"
-	}
+    global best_scores, last_seen, activity_log
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+        "Accept": "*/*"
+    }
 
-	print("--- Background Leaderboard Monitor Started ---", flush=True)
+    print("--- Background Leaderboard Monitor Started ---", flush=True)
 
-	while True:
-		for project in PROJECTS:
-			url = BASE_URL.format(project=project)
-			try:
-				response = requests.get(url, headers=headers, timeout=10)
-				response.raise_for_status()
-				
-				data = response.json()
-				project_scores = best_scores[project]
-				
-				for entry in data:
-					team = entry.get("group_name")
-					if not team:
-						continue
+    while True:
+        for project in PROJECTS:
+            url = BASE_URL.format(project=project)
+            try:
+                response = requests.get(url, headers=headers, timeout=10)
+                response.raise_for_status()
 
-					score, display_str = parse_entry_metrics(entry)
-					if score is None:
-						continue
+                data = response.json()
+                project_scores = best_scores[project]
 
-					# --- 1. ACTIVITY LOG TRACKING (Catches ALL movement) ---
-					if team not in last_seen[project]:
-						last_seen[project][team] = display_str
-					elif last_seen[project][team] != display_str:
-						old_val = last_seen[project][team]
-						timestamp = time.strftime("%H:%M:%S")
-						log_msg = f"[{timestamp}] {team} ({project.upper()}) went from {old_val} to {display_str}!"
-						
-						activity_log.insert(0, log_msg)
-						if len(activity_log) > 50:  # Keep UI clean, max 50 events
-							activity_log.pop()
-							
-						print(log_msg, flush=True)
-						last_seen[project][team] = display_str
+                for entry in data:
+                    team = entry.get("group_name")
+                    if not team:
+                        continue
 
-					# --- 2. HISTORICAL BEST TRACKING ---
-					if team not in project_scores:
-						project_scores[team] = {"score": score, "display": display_str}
-					elif score < project_scores[team]["score"]:
-						project_scores[team] = {"score": score, "display": display_str}
+                    score, display_str = parse_entry_metrics(entry)
+                    if score is None:
+                        continue
 
-			except Exception as e:
-				print(f"[{project.upper()}] Scraper Error: {e}", flush=True)
-				
-		try:
-			with open(LOG_FILE, "w") as f:
-				json.dump(best_scores, f, indent=4)
-		except Exception as e:
-			print(f"Save Error: {e}", flush=True)
-			
-		time.sleep(CHECK_INTERVAL_SECONDS)
+                    # --- 1. ACTIVITY LOG TRACKING (Catches ALL movement) ---
+                    if team not in last_seen[project]:
+                        last_seen[project][team] = display_str
+                    elif last_seen[project][team] != display_str:
+                        old_val = last_seen[project][team]
+                        timestamp = time.strftime("%H:%M:%S")
+                        log_msg = f"[{timestamp}] {team} ({project.upper()}) went from {old_val} to {display_str}!"
+
+                        activity_log.insert(0, log_msg)
+                        if len(activity_log) > 50:  # Keep UI clean, max 50 events
+                            activity_log.pop()
+
+                        print(log_msg, flush=True)
+                        last_seen[project][team] = display_str
+
+                    # --- 2. HISTORICAL BEST TRACKING ---
+                    if team not in project_scores:
+                        project_scores[team] = {
+                            "score": score, "display": display_str}
+                    elif score < project_scores[team]["score"]:
+                        project_scores[team] = {
+                            "score": score, "display": display_str}
+
+            except Exception as e:
+                print(f"[{project.upper()}] Scraper Error: {e}", flush=True)
+
+        try:
+            with open(LOG_FILE, "w") as f:
+                json.dump(best_scores, f, indent=4)
+        except Exception as e:
+            print(f"Save Error: {e}", flush=True)
+
+        time.sleep(CHECK_INTERVAL_SECONDS)
+
 
 # ==========================================
 # 4. WEB SERVER
@@ -181,17 +189,20 @@ HTML_TEMPLATE = """
 </html>
 """
 
+
 @app.route('/')
 def index():
-	return render_template_string(HTML_TEMPLATE, scores=best_scores, logs=activity_log)
+    return render_template_string(HTML_TEMPLATE, scores=best_scores, logs=activity_log)
+
 
 @app.route('/health')
 def health():
-	return "OK", 200
+    return "OK", 200
+
 
 if __name__ == '__main__':
-	scraper_thread = threading.Thread(target=monitor_leaderboards, daemon=True)
-	scraper_thread.start()
-	
-	port = int(os.environ.get("PORT", 5000))
-	app.run(host='0.0.0.0', port=port)
+    scraper_thread = threading.Thread(target=monitor_leaderboards, daemon=True)
+    scraper_thread.start()
+
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
