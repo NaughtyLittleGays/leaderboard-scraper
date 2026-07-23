@@ -58,6 +58,13 @@ This project runs a small Flask web app that scrapes several KIT leaderboards in
 
 ## Local setup
 
+### 0. Clone the repo
+
+```bash
+git clone https://github.com/NaughtyLittleGays/leaderboard-scraper
+cd leaderboard-scraper
+```
+
 ### 1. Create and activate a virtual environment
 
 Windows (PowerShell):
