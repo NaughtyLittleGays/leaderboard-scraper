@@ -20,15 +20,28 @@ app = Flask(__name__)
 best_scores = {p: {} for p in PROJECTS}
 last_seen = {p: {} for p in PROJECTS}
 activity_log = []
+flagged_cheaters = set()  # Tracks (team, raw_str) so alerts print ONCE
 
-# --- LOAD JSON BEST SCORES ---
+
+def is_hummingbird(team_name):
+    """Strict check to purge and ignore The Hummingbirds everywhere."""
+    return "hummingbird" in str(team_name).strip().lower()
+
+
+# --- LOAD & SANITIZE JSON BEST SCORES ON STARTUP ---
 if os.path.exists(LOG_FILE):
     try:
         with open(LOG_FILE, "r") as f:
             loaded_data = json.load(f)
             for p in PROJECTS:
                 if p in loaded_data and isinstance(loaded_data[p], dict):
-                    best_scores[p] = loaded_data[p]
+                    for team, info in loaded_data[p].items():
+                        if not is_hummingbird(team):
+                            if isinstance(info, dict):
+                                if "raw" not in info:
+                                    info["raw"] = str(
+                                        info.get("score", info.get("display", "")))
+                                best_scores[p][team] = info
     except Exception as e:
         print(f"Notice: Initializing clean database ({e})", flush=True)
 
@@ -37,13 +50,12 @@ if os.path.exists(TXT_LOG_FILE):
     try:
         with open(TXT_LOG_FILE, "r", encoding="utf-8") as f:
             lines = [line.strip() for line in f.readlines() if line.strip()]
-            activity_log = lines[::-1][:50]  # Grab latest 50 logs for UI
+            activity_log = lines[::-1][:50]
     except Exception as e:
         print(f"Notice: Could not load text log file ({e})", flush=True)
 
 
 def append_to_txt_log(msg):
-    """Writes a line to the persistent TXT log file immediately."""
     try:
         with open(TXT_LOG_FILE, "a", encoding="utf-8") as f:
             f.write(msg + "\n")
@@ -57,9 +69,6 @@ def append_to_txt_log(msg):
 
 
 def parse_entry_metrics(entry):
-    """
-    Returns (numerical_value, display_formatted_str, raw_unrounded_str)
-    """
     if "mse" in entry and entry["mse"] is not None:
         val = float(entry["mse"])
         return val, f"{val:.2f}", str(entry["mse"])
@@ -67,7 +76,7 @@ def parse_entry_metrics(entry):
     if "restweg_h" in entry and entry["restweg_h"] is not None:
         val = float(entry["restweg_h"])
         cov = entry.get("covered", "-")
-        return val, f"Cov: {cov} | Dist: {val:.2f}", f"Cov: {cov} | Raw Dist: {entry['restweg_h']}"
+        return val, f"Cov: {cov} | Dist: {val:.2f}", f"Cov: {cov} | Raw: {entry['restweg_h']}"
 
     if "path_length" in entry and entry["path_length"] is not None:
         val = float(entry["path_length"])
@@ -86,7 +95,7 @@ def parse_entry_metrics(entry):
 
 
 def monitor_leaderboards():
-    global best_scores, last_seen, activity_log
+    global best_scores, last_seen, activity_log, flagged_cheaters
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
         "Accept": "*/*"
@@ -106,11 +115,7 @@ def monitor_leaderboards():
 
                 for entry in data:
                     team = entry.get("group_name")
-                    if not team:
-                        continue
-
-                    # --- REQUIREMENT: IGNORE HUMMINGBIRDS ---
-                    if team.strip().lower() == "the hummingbirds":
+                    if not team or is_hummingbird(team):
                         continue
 
                     score, display_str, raw_str = parse_entry_metrics(entry)
@@ -119,20 +124,27 @@ def monitor_leaderboards():
 
                     # --- REQUIREMENT: TP03 CHEATER DETECTION LOGGING (< 9.70) ---
                     if project == "tp03" and score < 9.70:
-                        # If score changed or is newly detected
-                        if last_seen[project].get(team) != display_str:
-                            timestamp = time.strftime("%H:%M:%S")
-                            alerts = [
-                                f"[{timestamp}] 🚨 CHEATER DETECTED: {team} submitted {raw_str} (< 9.70 threshold)!",
-                                f"[{timestamp}] 🚨 IMPOSSIBLE SCORE ALERT: {team} is below theoretical limit (9.60)!",
-                                f"[{timestamp}] 🚨 FLAG LOGGED FOR {team}: Path Length = {raw_str}"
-                            ]
-                            for alert in alerts:
-                                activity_log.insert(0, alert)
-                                append_to_txt_log(alert)
-                                print(alert, flush=True)
+                        cheat_key = (team, raw_str)
 
-                    # --- 1. ACTIVITY LOG TRACKING (Catches ALL movement) ---
+                        # 1. LOG ALERT ONCE
+                        if cheat_key not in flagged_cheaters:
+                            flagged_cheaters.add(cheat_key)
+                            timestamp = time.strftime("%H:%M:%S")
+                            alert = f"[{timestamp}] 🚨 CHEATER DETECTED: {team} submitted {raw_str} (< 9.70 threshold)!"
+                            activity_log.insert(0, alert)
+                            append_to_txt_log(alert)
+                            print(alert, flush=True)
+
+                        # 2. LOG MULTIPLE ENTRIES ON TP03 LEADERBOARD
+                        entry_key = f"{team} 🚨 ({raw_str})"
+                        project_scores[entry_key] = {
+                            "score": score,
+                            "display": display_str,
+                            "raw": raw_str,
+                            "team_display": f"{team} 🚨"
+                        }
+
+                    # --- ACTIVITY LOG TRACKING (Standard movement) ---
                     if team not in last_seen[project]:
                         last_seen[project][team] = display_str
                     elif last_seen[project][team] != display_str:
@@ -149,28 +161,28 @@ def monitor_leaderboards():
                         print(log_msg, flush=True)
                         last_seen[project][team] = display_str
 
-                    # --- 2. HISTORICAL BEST TRACKING ---
-                    # REQUIREMENT: For TP03, save ONLY values above 9.60
-                    if project == "tp03" and score <= 9.60:
-                        continue  # Skip saving impossible/cheated scores as high score
+                    # --- HISTORICAL BEST TRACKING (Standard Teams) ---
+                    if project == "tp03" and score < 9.70:
+                        continue  # Handled above as multiple flagged entries
 
                     if team not in project_scores:
                         project_scores[team] = {
                             "score": score,
                             "display": display_str,
-                            "raw": raw_str
+                            "raw": raw_str,
+                            "team_display": team
                         }
                     elif score < project_scores[team]["score"]:
                         project_scores[team] = {
                             "score": score,
                             "display": display_str,
-                            "raw": raw_str
+                            "raw": raw_str,
+                            "team_display": team
                         }
 
             except Exception as e:
                 print(f"[{project.upper()}] Scraper Error: {e}", flush=True)
 
-        # Save High Scores to JSON
         try:
             with open(LOG_FILE, "w") as f:
                 json.dump(best_scores, f, indent=4)
@@ -199,7 +211,7 @@ HTML_TEMPLATE = """
 		.team-name { font-size: 1em; font-weight: 500; color: #e0e0e0; }
 		.score-box { text-align: right; }
 		.score { font-size: 1.1em; font-weight: bold; color: #cf6679; }
-		.raw-score { font-size: 0.75em; color: #888888; font-family: monospace; display: block; margin-top: 2px; }
+		.raw-score { font-size: 0.78em; color: #ff79c6; font-family: monospace; display: block; margin-top: 3px; word-break: break-all; }
 		.empty { color: #666; font-style: italic; font-size: 0.85em; padding: 6px 0; }
 		
 		.log-container { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 10px; max-height: 300px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 0.82em; color: #a9a9a9; }
@@ -218,10 +230,10 @@ HTML_TEMPLATE = """
 		{% if teams %}
 			{% for team, info in teams.items()|sort(attribute='1.score') %}
 			<div class="card">
-				<span class="team-name">{{ team }}</span>
+				<span class="team-name">{{ info.team_display if info.team_display else team }}</span>
 				<div class="score-box">
 					<span class="score">{{ info.display }}</span>
-					<span class="raw-score">{{ info.raw }}</span>
+					<span class="raw-score">{{ info.raw if info.raw else info.score }}</span>
 				</div>
 			</div>
 			{% endfor %}

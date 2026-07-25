@@ -2,83 +2,93 @@
     "tp01": {
         "The Alpacas": {
             "score": 4.946543766994656,
-            "display": "Cov: 46 | Dist: 4.95"
+            "display": "Cov: 46 | Dist: 4.95",
+            "raw": "4.946543766994656"
         },
         "The Elephants": {
             "score": 4.946543766994656,
-            "display": "Cov: 46 | Dist: 4.95"
-        },
-        "The Hummingbirds": {
-            "score": 4.946543766994656,
-            "display": "Cov: 46 | Dist: 4.95"
+            "display": "Cov: 46 | Dist: 4.95",
+            "raw": "4.946543766994656"
         },
         "The Bats": {
             "score": 5.557109338584819,
-            "display": "Cov: 45 | Dist: 5.56"
+            "display": "Cov: 45 | Dist: 5.56",
+            "raw": "5.557109338584819"
         },
         "imi": {
             "score": 42.187806477583514,
-            "display": "Cov: 3 | Dist: 42.19"
+            "display": "Cov: 3 | Dist: 42.19",
+            "raw": "42.187806477583514"
         },
         "The Skinks": {
             "score": 5.685814075410421,
-            "display": "Cov: 45 | Dist: 5.69"
+            "display": "Cov: 45 | Dist: 5.69",
+            "raw": "5.685814075410421"
         },
         "The Bisons": {
             "score": 4.949513183967662,
-            "display": "Cov: 46 | Dist: 4.95"
+            "display": "Cov: 46 | Dist: 4.95",
+            "raw": "4.949513183967662"
         }
     },
     "tp02": {
         "The Alpacas": {
             "score": 585.2577388932756,
-            "display": "585.26"
+            "display": "585.26",
+            "raw": "585.2577388932756"
         },
         "The Bonobos": {
             "score": 550.6588845059625,
-            "display": "550.66"
-        },
-        "The Hummingbirds": {
-            "score": 596.6774840425996,
-            "display": "596.68"
+            "display": "550.66",
+            "raw": "550.6588845059625"
         },
         "The Tapirs": {
             "score": 728.7916839496675,
-            "display": "728.79"
+            "display": "728.79",
+            "raw": "728.7916839496675"
         },
         "imi": {
             "score": 196245.87862241498,
-            "display": "196245.88"
+            "display": "196245.88",
+            "raw": "196245.87862241498"
         },
         "The Hawks": {
             "score": 752.2110572706395,
-            "display": "752.21"
+            "display": "752.21",
+            "raw": "752.2110572706395"
         }
     },
     "tp03": {
         "The Alpacas": {
             "score": 9.800652438337009,
-            "display": "Path: 9.80"
-        },
-        "The Hummingbirds": {
-            "score": 9.116431049826557,
-            "display": "Path: 9.12"
+            "display": "Path: 9.80",
+            "raw": "9.800652438337009"
         },
         "The Llamas": {
             "score": 24.516177866780303,
-            "display": "Path: 24.52"
+            "display": "Path: 24.52",
+            "raw": "24.516177866780303"
         },
         "imi": {
             "score": 37.73606797749979,
-            "display": "Path: 37.74"
+            "display": "Path: 37.74",
+            "raw": "37.73606797749979"
         },
         "The Bisons": {
             "score": 9.857003433984504,
-            "display": "Path: 9.86"
+            "display": "Path: 9.86",
+            "raw": "9.857003433984504"
         },
         "The Cardinals": {
             "score": 9.536321053678273,
-            "display": "Path: 9.54"
+            "display": "Path: 9.54",
+            "raw": "9.536321053678273"
+        },
+        "The Cardinals \ud83d\udea8 (Path: 9.536321053678273)": {
+            "score": 9.536321053678273,
+            "display": "Path: 9.54",
+            "raw": "Path: 9.536321053678273",
+            "team_display": "The Cardinals \ud83d\udea8"
         }
     }
 }
