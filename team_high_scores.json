@@ -23,6 +23,10 @@
         "The Skinks": {
             "score": 5.685814075410421,
             "display": "Cov: 45 | Dist: 5.69"
+        },
+        "The Bisons": {
+            "score": 5.066865323188284,
+            "display": "Cov: 46 | Dist: 5.07"
         }
     },
     "tp02": {
@@ -45,16 +49,20 @@
         "imi": {
             "score": 196245.87862241498,
             "display": "196245.88"
+        },
+        "The Hawks": {
+            "score": 752.2110572706395,
+            "display": "752.21"
         }
     },
     "tp03": {
         "The Alpacas": {
-            "score": 9.951763728661103,
-            "display": "Path: 9.95"
+            "score": 9.800652438337009,
+            "display": "Path: 9.80"
         },
         "The Hummingbirds": {
-            "score": 9.924717881837365,
-            "display": "Path: 9.92"
+            "score": 9.4447076015594,
+            "display": "Path: 9.44"
         },
         "The Llamas": {
             "score": 24.516177866780303,
@@ -63,6 +71,14 @@
         "imi": {
             "score": 37.73606797749979,
             "display": "Path: 37.74"
+        },
+        "The Cardinals": {
+            "score": 9.572016893637976,
+            "display": "Path: 9.57"
+        },
+        "The Bisons": {
+            "score": 9.857003433984504,
+            "display": "Path: 9.86"
         }
     }
 }
