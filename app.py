@@ -202,6 +202,7 @@ HTML_TEMPLATE = """
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>KIT Radar | Multi-Board</title>
+	<link rel="icon" type="image/x-icon" href="https://scrape.nekonyan.fun/favicon.ico">
 	<style>
 		body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #ffffff; padding: 15px; margin: 0; }
 		h1 { color: #bb86fc; text-align: center; margin-top: 10px; margin-bottom: 20px; font-size: 1.5em; }
