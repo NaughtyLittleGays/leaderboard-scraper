@@ -7,3 +7,4 @@
 [00:16:36] The Tapirs (TP02) went from 748.57 to 757.75 (Raw: 757.7533286507294)!
 [00:16:57] The Tapirs (TP02) went from 757.75 to 756.93 (Raw: 756.9319397507928)!
 [00:20:01] 🚨 CHEATER DETECTED: The Cardinals submitted Path: 9.536321053678273 (< 9.70 threshold)!
+[00:27:45] 🚨 CHEATER DETECTED: The Cardinals submitted Path: 9.536321053678273 (< 9.70 threshold)!
